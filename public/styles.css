@@ -331,7 +331,67 @@ body {
   color: var(--muted);
 }
 
+/* ---------- Season record cards ---------- */
+.records {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 620px) {
+  .records {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.rec {
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  text-align: center;
+}
+
+.rec__icon {
+  font-size: 1.5rem;
+}
+
+.rec__label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.rec__name {
+  font-weight: 800;
+  font-size: 1.05rem;
+  margin-top: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--accent-2);
+}
+
+.rec__detail {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
 /* ---------- Season table ---------- */
+.season__cap {
+  font-size: 0.76rem;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.season .muted {
+  color: var(--muted);
+}
+
 .season {
   overflow-x: auto;
 }

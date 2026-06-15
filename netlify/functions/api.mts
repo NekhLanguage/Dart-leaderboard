@@ -53,6 +53,12 @@ const isValidDate = (s: unknown): s is string =>
   /^\d{4}-\d{2}-\d{2}$/.test(s) &&
   !Number.isNaN(Date.parse(s));
 
+// The league runs Monday–Friday only.
+const isWeekday = (s: string): boolean => {
+  const dow = new Date(`${s}T00:00:00Z`).getUTCDay();
+  return dow >= 1 && dow <= 5;
+};
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -93,6 +99,12 @@ export default async (req: Request) => {
     if (!isValidDate(date)) {
       return json({ error: "Please pick a valid day." }, 400);
     }
+    if (!isWeekday(date)) {
+      return json(
+        { error: "The league runs Monday–Friday — please pick a weekday." },
+        400
+      );
+    }
 
     const data = await readData();
     let player = data.players.find((p) => normName(p.name) === normName(name));
@@ -109,9 +121,9 @@ export default async (req: Request) => {
 
     // POST: validate the score value.
     const value = Number(payload?.value);
-    if (!Number.isFinite(value) || value < 0 || value > 100000) {
+    if (!Number.isFinite(value) || value < 0 || value > 180) {
       return json(
-        { error: "Score must be a whole number between 0 and 100000." },
+        { error: "A three-dart score must be a whole number between 0 and 180." },
         400
       );
     }

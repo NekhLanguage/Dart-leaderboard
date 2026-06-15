@@ -30,7 +30,9 @@
     syncText: document.getElementById("syncText"),
   };
 
-  const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  // The league runs Monday–Friday (5 playing days per week).
+  const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+  const DAYS_PER_WEEK = WEEKDAYS.length;
 
   // ---------- Date helpers (all local time) ----------
   function pad(n) {
@@ -62,6 +64,23 @@
   }
   function fmtNum(n) {
     return n.toLocaleString("en-US");
+  }
+  function isWeekday(d) {
+    const day = d.getDay();
+    return day >= 1 && day <= 5;
+  }
+  // A competition week is "complete" once its Friday is in the past.
+  function weekIsComplete(start) {
+    const friday = addDays(start, DAYS_PER_WEEK - 1);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return friday < today;
+  }
+  // Sensible default for the entry form: today, or the most recent weekday.
+  function defaultEntryDate() {
+    let d = new Date();
+    while (!isWeekday(d)) d = addDays(d, -1);
+    return d;
   }
 
   // ---------- Data access ----------
@@ -194,104 +213,191 @@
     el.boardBody.innerHTML = `<div class="lb">${html}</div>`;
   }
 
+  function weekRangeLabel(weekKey) {
+    const start = parseKey(weekKey);
+    const end = addDays(start, DAYS_PER_WEEK - 1);
+    return `${fmtShort(start)}–${fmtShort(end)}`;
+  }
+
   function renderSeason() {
-    // Aggregate everything across all weeks.
-    const stats = new Map(); // playerId -> agg
+    // Group every score by competition week (Mon) and by player.
+    const weeks = new Map(); // weekKey -> Map(playerId -> { sum, days, maxDay })
+    const agg = new Map(); // playerId -> aggregate stats
+
     for (const p of data.players) {
-      stats.set(p.id, {
+      agg.set(p.id, {
         player: p,
         total: 0,
         days: 0,
-        best: null, // { value, date }
-        weeks: new Map(), // weekKey -> sum
+        bestDay: null, // { value, date }
+        bestWeek: null, // { value, weekKey }
+        weeksWon: 0,
+        topDayWeeks: 0, // completed weeks holding the top single-day throw
+        weeksPlayed: 0, // completed weeks participated in
+        dnfs: 0, // completed weeks played but not all 5 days
       });
     }
+
     for (const s of data.scores) {
-      const agg = stats.get(s.playerId);
-      if (!agg) continue;
-      agg.total += s.value;
-      agg.days += 1;
-      if (!agg.best || s.value > agg.best.value) {
-        agg.best = { value: s.value, date: s.date };
+      const a = agg.get(s.playerId);
+      if (!a) continue;
+      a.total += s.value;
+      a.days += 1;
+      if (!a.bestDay || s.value > a.bestDay.value) {
+        a.bestDay = { value: s.value, date: s.date };
       }
       const wk = toKey(startOfWeek(parseKey(s.date)));
-      agg.weeks.set(wk, (agg.weeks.get(wk) || 0) + s.value);
+      if (!weeks.has(wk)) weeks.set(wk, new Map());
+      const wpMap = weeks.get(wk);
+      if (!wpMap.has(s.playerId)) wpMap.set(s.playerId, { sum: 0, days: 0, maxDay: 0 });
+      const wp = wpMap.get(s.playerId);
+      wp.sum += s.value;
+      wp.days += 1;
+      if (s.value > wp.maxDay) wp.maxDay = s.value;
     }
 
-    // Determine the winner(s) of each completed week.
-    const weekWinners = computeWeekWins(stats);
+    // Per-week accolades.
+    for (const [wk, wpMap] of weeks) {
+      // Highest-scoring week is a personal record — count any week.
+      for (const [pid, wp] of wpMap) {
+        const a = agg.get(pid);
+        if (a && (!a.bestWeek || wp.sum > a.bestWeek.value)) {
+          a.bestWeek = { value: wp.sum, weekKey: wk };
+        }
+      }
+      // Wins / win%, top-day and DNFs only count once a week is finished.
+      if (!weekIsComplete(parseKey(wk))) continue;
 
-    const rows = [...stats.values()]
+      const sums = [...wpMap.values()].map((w) => w.sum);
+      const maxTotal = sums.length ? Math.max(...sums) : 0;
+      const maxDay = Math.max(...[...wpMap.values()].map((w) => w.maxDay), 0);
+
+      for (const [pid, wp] of wpMap) {
+        const a = agg.get(pid);
+        if (!a || wp.days === 0) continue;
+        a.weeksPlayed += 1;
+        if (wp.days < DAYS_PER_WEEK) a.dnfs += 1;
+        if (maxTotal > 0 && wp.sum === maxTotal) a.weeksWon += 1;
+        if (maxDay > 0 && wp.maxDay === maxDay) a.topDayWeeks += 1;
+      }
+    }
+
+    const winPct = (a) => (a.weeksPlayed > 0 ? a.weeksWon / a.weeksPlayed : 0);
+
+    const rows = [...agg.values()]
       .filter((a) => a.days > 0)
-      .sort((a, b) => b.total - a.total || a.player.name.localeCompare(b.player.name));
+      .sort(
+        (a, b) =>
+          b.weeksWon - a.weeksWon ||
+          winPct(b) - winPct(a) ||
+          b.total - a.total ||
+          a.player.name.localeCompare(b.player.name)
+      );
 
     if (rows.length === 0) {
       el.boardBody.innerHTML = emptyState(
         "The season hasn't started",
-        "Once scores are entered, season totals show up here."
+        "Once scores are entered, season stats show up here."
       );
       return;
     }
 
+    // ----- Record-holder highlight cards -----
+    const leaderBy = (valFn) => {
+      let best = null;
+      for (const a of rows) {
+        const v = valFn(a);
+        if (v == null) continue;
+        if (!best || v > best.v) best = { a, v };
+      }
+      return best;
+    };
+    const recBestDay = leaderBy((a) => (a.bestDay ? a.bestDay.value : null));
+    const recBestWeek = leaderBy((a) => (a.bestWeek ? a.bestWeek.value : null));
+    const recWins = leaderBy((a) => (a.weeksWon > 0 ? a.weeksWon : null));
+    const recWinPct = leaderBy((a) =>
+      a.weeksPlayed > 0 && a.weeksWon > 0 ? winPct(a) : null
+    );
+
+    const card = (icon, label, name, detail) => `
+      <div class="rec">
+        <div class="rec__icon">${icon}</div>
+        <div class="rec__label">${label}</div>
+        <div class="rec__name">${name ? escapeHtml(name) : "—"}</div>
+        <div class="rec__detail">${name ? detail : "Not yet"}</div>
+      </div>`;
+
+    const records = `
+      <div class="records">
+        ${card(
+          "🎯",
+          "Highest single day",
+          recBestDay && recBestDay.a.player.name,
+          recBestDay ? `${fmtNum(recBestDay.v)} on ${fmtShort(parseKey(recBestDay.a.bestDay.date))}` : ""
+        )}
+        ${card(
+          "🔥",
+          "Highest-scoring week",
+          recBestWeek && recBestWeek.a.player.name,
+          recBestWeek ? `${fmtNum(recBestWeek.v)} · ${weekRangeLabel(recBestWeek.a.bestWeek.weekKey)}` : ""
+        )}
+        ${card(
+          "🏆",
+          "Most weeks won",
+          recWins && recWins.a.player.name,
+          recWins ? `${recWins.v} ${recWins.v === 1 ? "week" : "weeks"}` : ""
+        )}
+        ${card(
+          "📈",
+          "Best win rate",
+          recWinPct && recWinPct.a.player.name,
+          recWinPct ? `${Math.round(recWinPct.v * 100)}% of weeks` : ""
+        )}
+      </div>`;
+
+    // ----- Full stats table -----
     const body = rows
       .map((a, i) => {
-        const avg = a.days ? (a.total / a.days) : 0;
-        const best = a.best
-          ? `${fmtNum(a.best.value)} <span style="color:var(--muted)">(${fmtShort(parseKey(a.best.date))})</span>`
+        const bestDay = a.bestDay
+          ? `${fmtNum(a.bestDay.value)} <span class="muted">(${fmtShort(parseKey(a.bestDay.date))})</span>`
           : "–";
-        const wins = weekWinners.get(a.player.id) || 0;
-        const winCell = wins > 0 ? `<span class="wins">🏆 ${wins}</span>` : "–";
+        const bestWeek = a.bestWeek ? fmtNum(a.bestWeek.value) : "–";
         return `
           <tr>
             <td class="s-rank">${i + 1}</td>
             <td class="s-name">${escapeHtml(a.player.name)}</td>
+            <td>${a.weeksWon > 0 ? `🏆 ${a.weeksWon}` : "–"}</td>
+            <td>${a.weeksPlayed > 0 ? Math.round(winPct(a) * 100) + "%" : "–"}</td>
+            <td>${a.topDayWeeks || "–"}</td>
+            <td>${bestDay}</td>
+            <td>${bestWeek}</td>
+            <td>${a.dnfs || "–"}</td>
             <td class="s-total">${fmtNum(a.total)}</td>
-            <td>${a.days}</td>
-            <td>${avg.toFixed(1)}</td>
-            <td>${best}</td>
-            <td>${winCell}</td>
           </tr>`;
       })
       .join("");
 
     el.boardBody.innerHTML = `
+      ${records}
       <div class="season">
+        <div class="season__cap">Ranked by weeks won · weekly accolades count finished Mon–Fri weeks only</div>
         <table>
           <thead>
             <tr>
               <th>#</th>
               <th>Player</th>
-              <th>Total</th>
-              <th>Days</th>
-              <th>Avg/day</th>
-              <th>Best day</th>
               <th>Weeks won</th>
+              <th title="Share of finished weeks won">Win %</th>
+              <th title="Weeks where you threw the top single-day score">Top days</th>
+              <th>Best day</th>
+              <th title="Your highest weekly total">High week</th>
+              <th title="Finished weeks where you missed at least one day">DNFs</th>
+              <th>Total</th>
             </tr>
           </thead>
           <tbody>${body}</tbody>
         </table>
       </div>`;
-  }
-
-  // For each week that has any scores, the player(s) with the highest weekly
-  // total earn a win. Ties award a win to everyone tied.
-  function computeWeekWins(stats) {
-    const perWeek = new Map(); // weekKey -> Map(playerId -> sum)
-    for (const agg of stats.values()) {
-      for (const [wk, sum] of agg.weeks) {
-        if (!perWeek.has(wk)) perWeek.set(wk, new Map());
-        perWeek.get(wk).set(agg.player.id, sum);
-      }
-    }
-    const wins = new Map();
-    for (const playerSums of perWeek.values()) {
-      const max = Math.max(...playerSums.values());
-      if (max <= 0) continue;
-      for (const [pid, sum] of playerSums) {
-        if (sum === max) wins.set(pid, (wins.get(pid) || 0) + 1);
-      }
-    }
-    return wins;
   }
 
   function emptyState(title, sub) {
@@ -316,6 +422,13 @@
     const dateKey = el.dateInput.value;
     if (!name || !dateKey) {
       el.existingHint.hidden = true;
+      el.deleteBtn.hidden = true;
+      el.saveBtn.textContent = "Save score";
+      return;
+    }
+    if (!isWeekday(parseKey(dateKey))) {
+      el.existingHint.hidden = false;
+      el.existingHint.textContent = "Heads up: the league runs Monday–Friday, so this day won't count.";
       el.deleteBtn.hidden = true;
       el.saveBtn.textContent = "Save score";
       return;
@@ -390,8 +503,15 @@
 
     if (!name) return setFormMsg("Please choose or type your name.", "error");
     if (!dateKey) return setFormMsg("Please pick a day.", "error");
-    if (scoreRaw === "" || isNaN(Number(scoreRaw))) {
+    if (!isWeekday(parseKey(dateKey))) {
+      return setFormMsg("The league runs Monday–Friday — please pick a weekday.", "error");
+    }
+    const scoreVal = Number(scoreRaw);
+    if (scoreRaw === "" || isNaN(scoreVal)) {
       return setFormMsg("Please enter a numeric score.", "error");
+    }
+    if (scoreVal < 0 || scoreVal > 180) {
+      return setFormMsg("A three-dart score must be between 0 and 180.", "error");
     }
 
     el.saveBtn.disabled = true;
@@ -456,7 +576,7 @@
 
   // ---------- Init ----------
   function init() {
-    el.dateInput.value = toKey(new Date());
+    el.dateInput.value = toKey(defaultEntryDate());
     syncTabs();
     refresh();
     // Poll so every office screen stays in sync.
