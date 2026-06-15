@@ -1,0 +1,13 @@
+[build]
+  publish = "public"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Friendly fallback so unknown routes still load the single-page app.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false

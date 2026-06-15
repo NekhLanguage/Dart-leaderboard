@@ -1,0 +1,16 @@
+{
+  "name": "office-darts-league",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A weekly leaderboard for an office darts competition, with shared stats for the whole office.",
+  "type": "module",
+  "scripts": {
+    "dev": "netlify dev"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  },
+  "devDependencies": {
+    "@netlify/functions": "^3.0.0"
+  }
+}

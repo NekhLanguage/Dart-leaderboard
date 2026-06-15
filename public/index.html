@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Office Darts League</title>
+    <meta
+      name="description"
+      content="Weekly leaderboard for the office darts competition."
+    />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AF%3C/text%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero__inner">
+        <h1 class="hero__title"><span class="hero__dart">🎯</span> Office Darts League</h1>
+        <p class="hero__sub">Weekly leaderboard · everyone plays, everyone counts</p>
+        <div class="hero__status">
+          <span class="dot" id="syncDot"></span>
+          <span id="syncText">Live · shared across the office</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="board card" aria-label="Leaderboard">
+        <div class="board__head">
+          <div class="weeknav">
+            <button class="iconbtn" id="prevWeek" aria-label="Previous week">‹</button>
+            <div class="weeknav__label">
+              <span id="weekRange">Loading…</span>
+              <button class="link" id="thisWeek" type="button">Jump to this week</button>
+            </div>
+            <button class="iconbtn" id="nextWeek" aria-label="Next week">›</button>
+          </div>
+
+          <div class="tabs" role="tablist">
+            <button class="tab is-active" data-view="week" role="tab">This Week</button>
+            <button class="tab" data-view="season" role="tab">Season Totals</button>
+          </div>
+        </div>
+
+        <div id="boardBody" class="board__body"></div>
+      </section>
+
+      <aside class="entry card" aria-label="Enter a score">
+        <h2 class="entry__title">Enter a score</h2>
+        <form id="scoreForm" novalidate>
+          <label class="field">
+            <span class="field__label">Your name</span>
+            <input
+              id="nameInput"
+              list="playerList"
+              autocomplete="off"
+              placeholder="Pick your name or type a new one"
+              maxlength="40"
+              required
+            />
+            <datalist id="playerList"></datalist>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Day</span>
+            <input id="dateInput" type="date" required />
+          </label>
+
+          <label class="field">
+            <span class="field__label">Score for that day</span>
+            <input
+              id="scoreInput"
+              type="number"
+              min="0"
+              max="100000"
+              step="1"
+              inputmode="numeric"
+              placeholder="e.g. 320"
+              required
+            />
+          </label>
+
+          <p id="existingHint" class="hint" hidden></p>
+
+          <div class="entry__actions">
+            <button type="submit" class="btn btn--primary" id="saveBtn">Save score</button>
+            <button type="button" class="btn btn--ghost" id="deleteBtn" hidden>Remove</button>
+          </div>
+
+          <p id="formMsg" class="formmsg" role="status" aria-live="polite"></p>
+        </form>
+
+        <p class="entry__note">
+          Playing catch-up? Pick any past or future day — your score still counts
+          for that week's board.
+        </p>
+      </aside>
+    </main>
+
+    <footer class="foot">
+      <p>Scores are shared live with everyone in the office. Good arrows! 🎯</p>
+    </footer>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
