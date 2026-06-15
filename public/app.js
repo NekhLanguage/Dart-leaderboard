@@ -6,15 +6,22 @@
   let data = { players: [], scores: [] };
   let weekStart = startOfWeek(new Date());
   let view = "week"; // "week" | "season"
+  let league = null; // set in init() to the current league
   let lastSync = 0;
 
   // ---------- Elements ----------
   const el = {
     boardBody: document.getElementById("boardBody"),
+    weekNav: document.getElementById("weekNav"),
     weekRange: document.getElementById("weekRange"),
     prevWeek: document.getElementById("prevWeek"),
     nextWeek: document.getElementById("nextWeek"),
     thisWeek: document.getElementById("thisWeek"),
+    leagueNav: document.getElementById("leagueNav"),
+    leagueLabel: document.getElementById("leagueLabel"),
+    prevLeague: document.getElementById("prevLeague"),
+    nextLeague: document.getElementById("nextLeague"),
+    thisLeague: document.getElementById("thisLeague"),
     tabs: Array.from(document.querySelectorAll(".tab")),
     form: document.getElementById("scoreForm"),
     nameInput: document.getElementById("nameInput"),
@@ -83,6 +90,43 @@
     return d;
   }
 
+  // ---------- League helpers ----------
+  // Two leagues per year for the running statistics:
+  //   Spring: 1 Jan – 30 Jun   ·   Autumn: 1 Aug – 31 Dec   (July is off-season)
+  function leagueForDate(d) {
+    const m = d.getMonth();
+    const y = d.getFullYear();
+    if (m <= 5) return { type: "spring", year: y }; // Jan–Jun
+    if (m >= 7) return { type: "autumn", year: y }; // Aug–Dec
+    return null; // July
+  }
+  function leagueWindow(l) {
+    return l.type === "spring"
+      ? { start: new Date(l.year, 0, 1), end: new Date(l.year, 5, 30) }
+      : { start: new Date(l.year, 7, 1), end: new Date(l.year, 11, 31) };
+  }
+  function leagueName(l) {
+    return `${l.type === "spring" ? "Spring" : "Autumn"} ${l.year}`;
+  }
+  function nextLeague(l) {
+    return l.type === "spring"
+      ? { type: "autumn", year: l.year }
+      : { type: "spring", year: l.year + 1 };
+  }
+  function prevLeague(l) {
+    return l.type === "autumn"
+      ? { type: "spring", year: l.year }
+      : { type: "autumn", year: l.year - 1 };
+  }
+  function sameLeague(a, b) {
+    return a.type === b.type && a.year === b.year;
+  }
+  // Current league, or — during the July break — the Spring that just ended.
+  function currentLeague() {
+    const today = new Date();
+    return leagueForDate(today) || { type: "spring", year: today.getFullYear() };
+  }
+
   // ---------- Data access ----------
   function playerById(id) {
     return data.players.find((p) => p.id === id);
@@ -143,10 +187,23 @@
 
   // ---------- Rendering ----------
   function render() {
+    const seasonView = view === "season";
+    el.weekNav.hidden = seasonView;
+    el.leagueNav.hidden = !seasonView;
     renderWeekLabel();
+    renderLeagueLabel();
     renderPlayerList();
-    if (view === "week") renderWeek();
-    else renderSeason();
+    if (seasonView) renderSeason();
+    else renderWeek();
+  }
+
+  function renderLeagueLabel() {
+    if (!league) return;
+    const { start, end } = leagueWindow(league);
+    el.leagueLabel.textContent = `${leagueName(league)} · ${fmtShort(start)} – ${fmtShort(end)}`;
+    el.thisLeague.style.visibility = sameLeague(league, currentLeague())
+      ? "hidden"
+      : "visible";
   }
 
   function renderWeekLabel() {
@@ -292,6 +349,12 @@
   }
 
   function renderSeason() {
+    // Stats run per league — only count scores inside the league's window.
+    const win = leagueWindow(league);
+    const startKey = toKey(win.start);
+    const endKey = toKey(win.end);
+    const inLeague = (s) => s.date >= startKey && s.date <= endKey;
+
     // Group every score by competition week (Mon) and by player.
     const weeks = new Map(); // weekKey -> Map(playerId -> { sum, days, maxDay })
     const agg = new Map(); // playerId -> aggregate stats
@@ -311,6 +374,7 @@
     }
 
     for (const s of data.scores) {
+      if (!inLeague(s)) continue;
       const a = agg.get(s.playerId);
       if (!a) continue;
       a.total += s.value;
@@ -368,8 +432,8 @@
 
     if (rows.length === 0) {
       el.boardBody.innerHTML = emptyState(
-        "The season hasn't started",
-        "Once scores are entered, season stats show up here."
+        `No scores in ${leagueName(league)} yet`,
+        "Once scores land in this league's window, the stats show up here."
       );
       return;
     }
@@ -452,7 +516,7 @@
     el.boardBody.innerHTML = `
       ${records}
       <div class="season">
-        <div class="season__cap">Ranked by weeks won · weekly accolades count finished Mon–Fri weeks only</div>
+        <div class="season__cap">${escapeHtml(leagueName(league))} · ranked by weeks won · weekly accolades count finished Mon–Fri weeks only</div>
         <table>
           <thead>
             <tr>
@@ -552,6 +616,19 @@
     render();
   });
 
+  el.prevLeague.addEventListener("click", () => {
+    league = prevLeague(league);
+    render();
+  });
+  el.nextLeague.addEventListener("click", () => {
+    league = nextLeague(league);
+    render();
+  });
+  el.thisLeague.addEventListener("click", () => {
+    league = currentLeague();
+    render();
+  });
+
   el.tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
       view = tab.dataset.view;
@@ -648,6 +725,7 @@
 
   // ---------- Init ----------
   function init() {
+    league = currentLeague();
     el.dateInput.value = toKey(defaultEntryDate());
     syncTabs();
     refresh();
