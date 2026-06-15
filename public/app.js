@@ -150,9 +150,10 @@
   }
 
   function renderWeekLabel() {
-    const end = addDays(weekStart, 6);
-    el.weekRange.textContent = `${fmtShort(weekStart)} – ${fmtShort(end)}, ${end.getFullYear()}`;
+    const end = addDays(weekStart, DAYS_PER_WEEK - 1); // Friday
     const isThisWeek = sameDay(weekStart, startOfWeek(new Date()));
+    const suffix = isThisWeek ? " · This week" : "";
+    el.weekRange.textContent = `${fmtShort(weekStart)} – ${fmtShort(end)}, ${end.getFullYear()}${suffix}`;
     el.thisWeek.style.visibility = isThisWeek ? "hidden" : "visible";
   }
 
@@ -163,17 +164,87 @@
       .join("");
   }
 
+  // Winner(s) of a given competition week (highest weekly total, >0). Ties shared.
+  function winnerOfWeek(start) {
+    const dayset = new Set(WEEKDAYS.map((_, i) => toKey(addDays(start, i))));
+    const totals = new Map();
+    for (const s of data.scores) {
+      if (!dayset.has(s.date)) continue;
+      totals.set(s.playerId, (totals.get(s.playerId) || 0) + s.value);
+    }
+    let max = 0;
+    for (const v of totals.values()) if (v > max) max = v;
+    if (max <= 0) return null;
+    const names = [];
+    for (const [pid, v] of totals) {
+      if (v === max) {
+        const p = playerById(pid);
+        if (p) names.push(p.name);
+      }
+    }
+    names.sort((a, b) => a.localeCompare(b));
+    return { names, total: max };
+  }
+
+  // All-time best single-day three-dart score.
+  function recordDay() {
+    let best = null;
+    for (const s of data.scores) {
+      if (!best || s.value > best.value) best = s;
+    }
+    if (!best) return null;
+    const p = playerById(best.playerId);
+    return { name: p ? p.name : "—", value: best.value, date: best.date };
+  }
+
+  function weekHighlightsHtml() {
+    const last = winnerOfWeek(addDays(weekStart, -7));
+    const rec = recordDay();
+    const lastName = last
+      ? last.names.length > 1
+        ? `${last.names.slice(0, -1).join(", ")} & ${last.names[last.names.length - 1]}`
+        : last.names[0]
+      : null;
+    const lastVal = last
+      ? `${escapeHtml(lastName)} <span class="muted">· ${fmtNum(last.total)} pts</span>`
+      : "No scores last week";
+    const recVal = rec
+      ? `${escapeHtml(rec.name)} <span class="muted">· ${fmtNum(rec.value)} (${fmtShort(parseKey(rec.date))})</span>`
+      : "Not set yet";
+    return `
+      <div class="highlights">
+        <div class="hl">
+          <span class="hl__icon">🏆</span>
+          <div class="hl__body">
+            <div class="hl__label">Last week's winner</div>
+            <div class="hl__value">${lastVal}</div>
+          </div>
+        </div>
+        <div class="hl">
+          <span class="hl__icon">🎯</span>
+          <div class="hl__body">
+            <div class="hl__label">Record single day</div>
+            <div class="hl__value">${recVal}</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
   function renderWeek() {
+    const banner = weekHighlightsHtml();
+    const todayKey = toKey(new Date());
     const rows = data.players
       .map((p) => ({ player: p, ...weekDataFor(p.id, weekStart) }))
       .filter((r) => r.total > 0 || Object.values(r.byDay).some((v) => v !== null))
       .sort((a, b) => b.total - a.total || a.player.name.localeCompare(b.player.name));
 
     if (rows.length === 0) {
-      el.boardBody.innerHTML = emptyState(
-        "No scores for this week yet",
-        "Be the first to throw — add a score on the right."
-      );
+      el.boardBody.innerHTML =
+        banner +
+        emptyState(
+          "No scores for this week yet",
+          "Be the first to throw — add a score on the right."
+        );
       return;
     }
 
@@ -189,8 +260,9 @@
           .map((key, idx) => {
             const v = r.byDay[key];
             const empty = v === null ? " is-empty" : "";
+            const today = key === todayKey ? " is-today" : "";
             const val = v === null ? "–" : fmtNum(v);
-            return `<span class="daychip${empty}">${WEEKDAYS[idx]} <b>${val}</b></span>`;
+            return `<span class="daychip${empty}${today}">${WEEKDAYS[idx]} <b>${val}</b></span>`;
           })
           .join("");
         const barW = ((r.total / max) * 100).toFixed(1);
@@ -210,7 +282,7 @@
       })
       .join("");
 
-    el.boardBody.innerHTML = `<div class="lb">${html}</div>`;
+    el.boardBody.innerHTML = banner + `<div class="lb">${html}</div>`;
   }
 
   function weekRangeLabel(weekKey) {

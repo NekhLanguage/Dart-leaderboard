@@ -309,6 +309,12 @@ body {
   opacity: 0.4;
 }
 
+.daychip.is-today {
+  border-color: var(--accent-2);
+  color: var(--accent-2);
+  box-shadow: 0 0 0 1px var(--accent-2) inset;
+}
+
 .daychip b {
   color: var(--text);
   font-weight: 700;
@@ -329,6 +335,53 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
+}
+
+/* ---------- Week highlights banner ---------- */
+.highlights {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 560px) {
+  .highlights {
+    grid-template-columns: 1fr;
+  }
+}
+
+.hl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.hl__icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.hl__label {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.hl__value {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-top: 2px;
+}
+
+.muted {
+  color: var(--muted);
+  font-weight: 500;
 }
 
 /* ---------- Season record cards ---------- */
