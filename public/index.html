@@ -32,7 +32,7 @@
     <main class="layout">
       <section class="board card" aria-label="Leaderboard">
         <div class="board__head">
-          <div class="weeknav">
+          <div class="weeknav" id="weekNav">
             <button class="iconbtn" id="prevWeek" aria-label="Previous week">‹</button>
             <div class="weeknav__label">
               <span id="weekRange">Loading…</span>
@@ -41,9 +41,18 @@
             <button class="iconbtn" id="nextWeek" aria-label="Next week">›</button>
           </div>
 
+          <div class="weeknav" id="leagueNav" hidden>
+            <button class="iconbtn" id="prevLeague" aria-label="Previous league">‹</button>
+            <div class="weeknav__label">
+              <span id="leagueLabel">League</span>
+              <button class="link" id="thisLeague" type="button">Jump to current league</button>
+            </div>
+            <button class="iconbtn" id="nextLeague" aria-label="Next league">›</button>
+          </div>
+
           <div class="tabs" role="tablist">
             <button class="tab is-active" data-view="week" role="tab">This Week</button>
-            <button class="tab" data-view="season" role="tab">Season Totals</button>
+            <button class="tab" data-view="season" role="tab">League Stats</button>
           </div>
         </div>
 
