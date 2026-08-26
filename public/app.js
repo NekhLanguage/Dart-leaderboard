@@ -8,6 +8,7 @@
   let view = "week"; // "week" | "season" | "game"
   let league = null; // set in init() to the current league
   let lastSync = 0;
+  let deployId = null; // reload long-open pages when a new deploy ships
   let nameMode = "pick"; // "pick" (dropdown of registered players) | "new"
   let mergeOpenId = null; // player id with the merge picker open
   let mergeTargetId = ""; // chosen merge target (survives re-renders)
@@ -169,6 +170,15 @@
   async function refresh() {
     try {
       data = await fetchData();
+      // A new deploy shipped while this page was open (e.g. the office TV):
+      // reload to pick up the new code — but never in the middle of a match.
+      if (data.deployId) {
+        if (deployId && deployId !== data.deployId && (view !== "game" || game === null)) {
+          location.reload();
+          return;
+        }
+        deployId = data.deployId;
+      }
       lastSync = Date.now();
       markFresh(true);
       // Don't redraw mid-match — a background poll must never disturb a game

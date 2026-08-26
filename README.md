@@ -36,7 +36,7 @@ stats** in real time.
 | ------------ | -------------------------------------------------------------- |
 | Front end    | Static HTML / CSS / vanilla JS in `public/`                    |
 | API          | A single [Netlify Function](netlify/functions/api.mts)         |
-| Storage      | [Netlify Blobs](https://docs.netlify.com/blobs/overview/) — a shared, strongly-consistent store. Production uses a global store; preview/branch deploys use an isolated deploy-scoped store so test data never touches the real leaderboard. |
+| Storage      | [Netlify Blobs](https://docs.netlify.com/blobs/overview/) — a shared, strongly-consistent store. The leaderboard lives in a durable site-wide store that survives deploys; only deploy previews and branch deploys get an isolated deploy-scoped store (detected via the runtime deploy context — `process.env.CONTEXT` only exists at build time). |
 
 No database to manage and no logins — perfect for an honour-system office board.
 
@@ -50,6 +50,10 @@ No database to manage and no logins — perfect for an honour-system office boar
 - `POST /api/player/merge` — body `{ fromId, intoId }`. Moves every score from
   one player onto another (same-day clashes keep the higher value), then
   removes the `from` player.
+- `GET /api/admin/import-deploy?deployId=…` — one-time recovery: merges the
+  leaderboard data stored on an old deploy (from before the durable-storage
+  fix) into the current store. Idempotent; the deploy id is shown in the
+  Netlify UI under Deploys.
 
 ## Local development
 
