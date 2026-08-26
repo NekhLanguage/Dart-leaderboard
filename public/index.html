@@ -53,6 +53,7 @@
           <div class="tabs" role="tablist">
             <button class="tab is-active" data-view="week" role="tab">This Week</button>
             <button class="tab" data-view="season" role="tab">League Stats</button>
+            <button class="tab" data-view="game" role="tab">Play a Match</button>
           </div>
         </div>
 
@@ -62,18 +63,21 @@
       <aside class="entry card" aria-label="Enter a score">
         <h2 class="entry__title">Enter a score</h2>
         <form id="scoreForm" novalidate>
-          <label class="field">
-            <span class="field__label">Your name</span>
+          <div class="field">
+            <span class="field__label" id="nameLabel">Your name</span>
+            <select id="nameSelect" aria-labelledby="nameLabel"></select>
             <input
               id="nameInput"
-              list="playerList"
               autocomplete="off"
-              placeholder="Pick your name or type a new one"
+              placeholder="Type the new player's name"
               maxlength="40"
-              required
+              hidden
+              aria-labelledby="nameLabel"
             />
-            <datalist id="playerList"></datalist>
-          </label>
+            <button type="button" class="link field__toggle" id="nameModeToggle">
+              + Add a new player
+            </button>
+          </div>
 
           <label class="field">
             <span class="field__label">Day</span>
@@ -109,6 +113,15 @@
           Pick any past or future weekday — the league runs Monday–Friday and your
           score still counts for that week's board.
         </p>
+
+        <details class="manage" id="managePanel">
+          <summary class="manage__summary">Manage players</summary>
+          <p class="manage__hint">
+            Fix a misspelled duplicate by merging it into the right name (their
+            scores move over), or delete a player entirely.
+          </p>
+          <div id="manageList" class="manage__list"></div>
+        </details>
       </aside>
     </main>
 
