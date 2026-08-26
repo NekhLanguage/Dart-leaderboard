@@ -78,6 +78,86 @@ export default async (req: Request) => {
     return json(await readData());
   }
 
+  // ---- Remove a player (and all of their scores) ----
+  if (url.pathname === "/api/player") {
+    if (req.method !== "DELETE") {
+      return json({ error: "Method not allowed" }, 405);
+    }
+
+    let payload: any;
+    try {
+      payload = await req.json();
+    } catch {
+      return json({ error: "Invalid request body." }, 400);
+    }
+
+    const id = typeof payload?.id === "string" ? payload.id : "";
+    if (!id) return json({ error: "Missing player id." }, 400);
+
+    const data = await readData();
+    const player = data.players.find((p) => p.id === id);
+    if (!player) return json({ error: "That player no longer exists." }, 404);
+
+    data.players = data.players.filter((p) => p.id !== id);
+    data.scores = data.scores.filter((s) => s.playerId !== id);
+    await writeData(data);
+    return json(data);
+  }
+
+  // ---- Merge one player into another (fixes misspelled duplicates) ----
+  // Moves every score from `fromId` onto `intoId`; when both have a score on
+  // the same day the higher one wins. The `from` player is then removed.
+  if (url.pathname === "/api/player/merge") {
+    if (req.method !== "POST") {
+      return json({ error: "Method not allowed" }, 405);
+    }
+
+    let payload: any;
+    try {
+      payload = await req.json();
+    } catch {
+      return json({ error: "Invalid request body." }, 400);
+    }
+
+    const fromId = typeof payload?.fromId === "string" ? payload.fromId : "";
+    const intoId = typeof payload?.intoId === "string" ? payload.intoId : "";
+    if (!fromId || !intoId) return json({ error: "Missing player ids." }, 400);
+    if (fromId === intoId) {
+      return json({ error: "Pick two different players to merge." }, 400);
+    }
+
+    const data = await readData();
+    const from = data.players.find((p) => p.id === fromId);
+    const into = data.players.find((p) => p.id === intoId);
+    if (!from || !into) {
+      return json({ error: "One of those players no longer exists." }, 404);
+    }
+
+    const intoByDate = new Map(
+      data.scores.filter((s) => s.playerId === intoId).map((s) => [s.date, s])
+    );
+    const remaining: ScoreEntry[] = [];
+    for (const s of data.scores) {
+      if (s.playerId !== fromId) {
+        remaining.push(s);
+        continue;
+      }
+      const clash = intoByDate.get(s.date);
+      if (!clash) {
+        const moved = { ...s, playerId: intoId, updatedAt: new Date().toISOString() };
+        intoByDate.set(s.date, moved);
+        remaining.push(moved);
+      } else if (s.value > clash.value) {
+        clash.value = s.value;
+        clash.updatedAt = new Date().toISOString();
+      }
+    }
+    data.scores = remaining;
+    data.players = data.players.filter((p) => p.id !== fromId);
+    await writeData(data);
+    return json(data);
+  }
+
   // ---- Add/update or delete a single day's score ----
   if (url.pathname === "/api/score") {
     if (req.method !== "POST" && req.method !== "DELETE") {
@@ -162,5 +242,5 @@ export default async (req: Request) => {
 };
 
 export const config: Config = {
-  path: ["/api/data", "/api/score"],
+  path: ["/api/data", "/api/score", "/api/player", "/api/player/merge"],
 };

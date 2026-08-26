@@ -21,6 +21,11 @@
   box-sizing: border-box;
 }
 
+/* The hidden attribute must win even over display:flex rules. */
+[hidden] {
+  display: none !important;
+}
+
 html {
   -webkit-text-size-adjust: 100%;
 }
@@ -548,7 +553,8 @@ body {
   margin-bottom: 6px;
 }
 
-.field input {
+.field input,
+.field select {
   width: 100%;
   padding: 12px 13px;
   border-radius: 11px;
@@ -560,14 +566,24 @@ body {
   transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
 
+.field select {
+  cursor: pointer;
+}
+
 .field input::placeholder {
   color: var(--muted-2);
 }
 
-.field input:focus {
+.field input:focus,
+.field select:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(31, 181, 116, 0.18);
+}
+
+.field__toggle {
+  margin-top: 7px;
+  font-size: 0.8rem;
 }
 
 /* dark date picker */
@@ -647,6 +663,367 @@ body {
   border-top: 1px solid var(--line);
   font-size: 0.82rem;
   color: var(--muted);
+}
+
+/* ---------- Manage players ---------- */
+.manage {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.manage__summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.manage__summary:hover {
+  color: var(--text);
+}
+
+.manage__hint {
+  font-size: 0.78rem;
+  color: var(--muted-2);
+  margin: 10px 0;
+}
+
+.manage__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.manage__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--bg);
+}
+
+.manage__who {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.manage__name {
+  font-weight: 700;
+  font-size: 0.92rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.manage__meta {
+  font-size: 0.72rem;
+  color: var(--muted-2);
+}
+
+.manage__acts {
+  display: flex;
+  gap: 6px;
+}
+
+.manage__merge {
+  flex-basis: 100%;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.manage__merge select {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 9px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--card-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.84rem;
+}
+
+.btn--mini {
+  padding: 7px 11px;
+  font-size: 0.78rem;
+  border-radius: 9px;
+  background: var(--card-2);
+  border-color: var(--line);
+  color: var(--text);
+}
+
+.btn--mini:hover {
+  border-color: var(--accent);
+}
+
+.btn--mini:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn--danger {
+  color: var(--red);
+}
+
+.btn--danger:hover {
+  border-color: var(--red);
+  background: rgba(226, 59, 78, 0.1);
+}
+
+.btn--plain {
+  background: transparent;
+  color: var(--muted);
+}
+
+/* ---------- Match mode ---------- */
+.game {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.game__h {
+  margin: 4px 0 0;
+  font-size: 0.95rem;
+}
+
+.game__h .muted {
+  font-weight: 500;
+  font-size: 0.78rem;
+}
+
+.game__hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 2px 0;
+}
+
+.game__setup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 6px 4px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.chip {
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card-2);
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.chip:hover {
+  border-color: var(--accent);
+}
+
+.chip.is-active {
+  background: linear-gradient(180deg, var(--accent) 0%, #169a62 100%);
+  border-color: transparent;
+  color: #04130c;
+}
+
+.chip__order {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+}
+
+.game__start {
+  align-self: flex-start;
+}
+
+.gplayers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.gp {
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.gp.is-current {
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 1px var(--accent-2) inset;
+}
+
+.gp.is-winner {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold) inset;
+}
+
+.gp__name {
+  font-weight: 700;
+  font-size: 0.88rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gp__left {
+  font-weight: 800;
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.gp__hint {
+  font-size: 0.72rem;
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
+.game__now {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.92rem;
+  padding: 4px 2px;
+}
+
+.game__turnwho {
+  font-weight: 800;
+  color: var(--accent-2);
+}
+
+.game__slots {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.dartslot {
+  min-width: 44px;
+  text-align: center;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--card-2);
+  font-weight: 700;
+  font-size: 0.86rem;
+}
+
+.dartslot.is-empty {
+  color: var(--muted-2);
+}
+
+.dartslot.is-void {
+  text-decoration: line-through;
+  color: var(--red);
+  border-color: rgba(226, 59, 78, 0.5);
+}
+
+.game__win {
+  text-align: center;
+  font-size: 1.25rem;
+  padding: 12px;
+  border: 1px solid rgba(246, 195, 67, 0.5);
+  border-radius: 12px;
+  background: rgba(246, 195, 67, 0.08);
+}
+
+.game__board {
+  max-width: 520px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.game__board.is-locked .seg {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.board-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  touch-action: manipulation;
+}
+
+.seg {
+  cursor: pointer;
+  stroke: #0a0d12;
+  stroke-width: 1.5;
+  transition: filter 0.08s ease;
+}
+
+.seg:hover {
+  filter: brightness(1.45);
+}
+
+.seg--black { fill: #23272f; }
+.seg--cream { fill: #e8dcc2; }
+.seg--red { fill: #c8323f; }
+.seg--green { fill: #1f8a53; }
+.seg--miss { fill: #10151d; }
+
+.boardnum {
+  fill: var(--muted);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 24px;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.game__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.btn--ghostline {
+  background: var(--card-2);
+  border-color: var(--line);
+  color: var(--text);
+}
+
+.btn--ghostline:hover {
+  border-color: var(--accent);
+}
+
+.btn--ghostline:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn--quit {
+  color: var(--red);
+}
+
+.btn--quit:hover {
+  border-color: var(--red);
 }
 
 /* ---------- Footer ---------- */
